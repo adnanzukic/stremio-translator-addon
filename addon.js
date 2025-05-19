@@ -4,7 +4,7 @@ const { addonBuilder } = require("stremio-addon-sdk");
 const builder = new addonBuilder({
     id: "org.stremio.translator",
     version: "1.0.0",
-    name: "Translator Addon",
+    name: "Translator Addon by AdnanZukic",
     description: "Prevodi opise filmova i serija na željeni jezik",
     types: ["movie", "series"],
     catalogs: [],
@@ -27,6 +27,9 @@ builder.defineMetaHandler(async ({ type, id }) => {
     let translatedDescription = originalMeta.meta.description;
     try {
         translatedDescription = await translateText(originalMeta.meta.description);
+console.log("Original:", originalMeta.meta.description);
+console.log("Prevedeno:", translatedDescription);
+
     } catch (e) {
         console.error("Prevod nije uspio:", e.message);
     }
