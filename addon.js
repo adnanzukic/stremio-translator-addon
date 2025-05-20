@@ -9,6 +9,7 @@ const builder = new addonBuilder({
     types: ["movie", "series"],
     catalogs: [],
     resources: ["meta"],
+idPrefixes: ["tt"]
 });
 
 const TARGET_LANGUAGE = "hr"; // možeš staviti "bs", "sr", "en", itd.
