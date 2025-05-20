@@ -1,52 +1,58 @@
+// addon.js
 const { addonBuilder } = require("stremio-addon-sdk");
 
 const builder = new addonBuilder({
     id: "org.stremio.translator",
     version: "1.0.0",
     name: "Translator Addon by AdnanZukic",
-    description: "Prevodi opise filmova i serija na željeni jezik",
+    description: "Prikazuje prevedene opise filmova i serija iz Cinemete",
     types: ["movie", "series"],
     catalogs: [
         {
             type: "movie",
-            id: "translator_catalog",
-            name: "Prevedeni filmovi"
+            id: "cinemeta-translated-movie",
+            name: "Prevedeni Filmovi",
+            extra: [{ name: "search" }, { name: "genre" }, { name: "skip" }]
         },
         {
             type: "series",
-            id: "translator_catalog",
-            name: "Prevedene serije"
+            id: "cinemeta-translated-series",
+            name: "Prevedene Serije",
+            extra: [{ name: "search" }, { name: "genre" }, { name: "skip" }]
         }
     ],
-    resources: ["meta", "catalog"],
+    resources: ["catalog", "meta"],
     idPrefixes: ["tt"]
 });
 
-const TARGET_LANGUAGE = "hr"; // možeš staviti "bs", "sr", itd.
+const TARGET_LANGUAGE = "hr";
 
-builder.defineCatalogHandler(({ type, id }) => {
-    if (id !== "translator_catalog") return Promise.resolve({ metas: [] });
+const translateText = async (text) => {
+    const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${TARGET_LANGUAGE}&dt=t&q=${encodeURIComponent(text)}`);
+    const json = await res.json();
+    return json[0].map(x => x[0]).join("");
+};
 
-    // Primjeri filmova - IMDb ID-ovi
-    const items = [
-        { id: "tt10298840", type: "movie", name: "The Pope's Exorcist" },
-        { id: "tt9411972", type: "movie", name: "Jungle Cruise" },
-        { id: "tt6723592", type: "movie", name: "Tenet" }
-    ];
+builder.defineCatalogHandler(async ({ type, id, extra }) => {
+    const realCatalogId = id.includes("movie") ? "top" : "top";
+    const queryParts = [];
+    if (extra?.search) queryParts.push(`search=${encodeURIComponent(extra.search)}`);
+    if (extra?.genre) queryParts.push(`genre=${encodeURIComponent(extra.genre)}`);
+    if (extra?.skip) queryParts.push(`skip=${encodeURIComponent(extra.skip)}`);
+    const query = queryParts.length ? `?${queryParts.join("&")}` : "";
 
-    return Promise.resolve({ metas: items.filter(item => item.type === type) });
+    const res = await fetch(`https://v3-cinemeta.strem.io/catalog/${type}/${realCatalogId}.json${query}`);
+    const json = await res.json();
+
+    return {
+        metas: json.metas
+    };
 });
 
 builder.defineMetaHandler(async ({ type, id }) => {
     const url = `https://v3-cinemeta.strem.io/meta/${type}/${id}.json`;
     const response = await fetch(url);
     const originalMeta = await response.json();
-
-    const translateText = async (text) => {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${TARGET_LANGUAGE}&dt=t&q=${encodeURIComponent(text)}`);
-        const json = await res.json();
-        return json[0].map(x => x[0]).join("");
-    };
 
     let translatedDescription = originalMeta.meta.description;
     try {
